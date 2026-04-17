@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Notate 0.1.0</title>
+<title>Notate 0.2.0</title>
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.3/build/cjs/vexflow.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -22,7 +22,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh; /* dynamic viewport per iPad Safari */
+    height: 100dvh;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
@@ -40,35 +40,20 @@
   }
   #topbar .title { font-weight: 600; }
   #topbar .version { opacity: 0.6; font-size: 12px; }
-  #score-container {
-    flex: 1;
-    overflow: auto;
-    background: #fff;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  #score-svg-wrapper {
-    position: relative;
-    background: #fff;
-    touch-action: manipulation;
-  }
-  #score { cursor: crosshair; }
   #palette {
     background: #e8e8e0;
     border-bottom: 2px solid #c0c0b0;
-    padding: 10px 8px;
+    padding: 8px;
     display: flex;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
   }
   .btn {
-    min-width: 54px;
-    min-height: 54px;
+    min-width: 50px;
+    min-height: 50px;
     border: 2px solid #888;
     background: #fff;
     border-radius: 8px;
@@ -77,7 +62,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-family: "Bravura Text", "Noto Music", serif;
     color: #222;
     transition: background 0.1s, border-color 0.1s;
@@ -90,35 +75,45 @@
   }
   .btn.small {
     min-width: 44px;
-    min-height: 44px;
     font-size: 14px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 600;
   }
+  .btn.danger.active {
+    background: #c92c2c;
+    border-color: #8c1a1a;
+  }
   .sep {
     width: 2px;
-    height: 40px;
+    height: 36px;
     background: #b0b0a0;
-    margin: 0 4px;
+    margin: 0 2px;
   }
+  #score-container {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    background: #fff;
+    padding: 20px 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #score-svg-wrapper {
+    position: relative;
+    background: #fff;
+    touch-action: pan-x pan-y;
+    margin: 0 auto;
+  }
+  #score { cursor: crosshair; }
   #status {
     font-size: 11px;
-    color: #aaa;
     padding: 4px 16px;
     background: #1a1a1a;
     color: #888;
     flex-shrink: 0;
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  }
-  /* Note ghost indicator while hovering */
-  #ghost {
-    position: absolute;
-    pointer-events: none;
-    font-family: "Bravura Text", serif;
-    color: rgba(44, 108, 201, 0.5);
-    font-size: 28px;
-    display: none;
-    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>
 </head>
@@ -126,11 +121,10 @@
 <div id="app">
   <div id="topbar">
     <span class="title">Notate</span>
-    <span class="version">v0.1.1</span>
+    <span class="version">v0.2.0</span>
   </div>
 
   <div id="palette">
-    <!-- Durate -->
     <button class="btn" data-duration="w" title="Intero">𝅝</button>
     <button class="btn" data-duration="h" title="Metà">𝅗𝅥</button>
     <button class="btn active" data-duration="q" title="Quarto">♩</button>
@@ -140,25 +134,24 @@
 ```
 <div class="sep"></div>
 
-<!-- Punto di valore -->
-<button class="btn small" id="btn-dot" title="Punto di valore">.</button>
-
-<div class="sep"></div>
-
-<!-- Pausa toggle -->
+<button class="btn small" id="btn-dot" title="Punto">.</button>
 <button class="btn small" id="btn-rest" title="Pausa">Pausa</button>
 
 <div class="sep"></div>
 
-<!-- Alterazioni -->
 <button class="btn" data-acc="#" title="Diesis">♯</button>
 <button class="btn" data-acc="b" title="Bemolle">♭</button>
 <button class="btn" data-acc="n" title="Bequadro">♮</button>
 
 <div class="sep"></div>
 
-<!-- Undo -->
-<button class="btn small" id="btn-undo" title="Annulla ultima">↶</button>
+<button class="btn small" id="btn-undo" title="Annulla">↶</button>
+<button class="btn small danger" id="btn-delete" title="Cancella selezionata">✕</button>
+
+<div class="sep"></div>
+
+<button class="btn small" id="btn-add-measure" title="+ battuta">+ Batt.</button>
+<button class="btn small" id="btn-remove-measure" title="− battuta">− Batt.</button>
 ```
 
   </div>
@@ -166,7 +159,6 @@
   <div id="score-container">
     <div id="score-svg-wrapper">
       <div id="score"></div>
-      <div id="ghost">♩</div>
     </div>
   </div>
 
@@ -177,60 +169,53 @@
 (function() {
   'use strict';
 
-  // ============================================================
-  // NOTATE 0.1.0
-  // Build: usabilità base. Un rigo, 4 battute, inserimento note.
-  // ============================================================
-
   const VF = Vex.Flow;
 
-  // ---- Stato ----
   const state = {
-    duration: 'q',       // durata corrente
-    dotted: false,       // punto di valore attivo
-    rest: false,         // modalità pausa
-    accidental: null,    // '#' | 'b' | 'n' | null
-    notes: [],           // array di oggetti nota: {keys:[], duration, dots, accidentals, isRest}
+    duration: 'q',
+    dotted: false,
+    rest: false,
+    accidental: null,
+    notes: [],
     measureCount: 4,
-    beatsPerMeasure: 4,  // 4/4
-    beatUnit: 4
+    beatsPerMeasure: 4,
+    beatUnit: 4,
+    selectedIndex: -1,
+    history: []
+  };
+
+  const HISTORY_LIMIT = 50;
+
+  const pushHistory = () => {
+    state.history.push(JSON.stringify({
+      notes: state.notes,
+      measureCount: state.measureCount
+    }));
+    if (state.history.length > HISTORY_LIMIT) state.history.shift();
+  };
+
+  const undo = () => {
+    if (state.history.length === 0) return;
+    const snap = JSON.parse(state.history.pop());
+    state.notes = snap.notes;
+    state.measureCount = snap.measureCount;
+    state.selectedIndex = -1;
+    render();
   };
 
   const setStatus = (msg) => {
     document.getElementById('status').textContent = msg;
   };
 
-  // ---- Mappatura durata → beats ----
   const durationToBeats = (d, dotted) => {
     const base = { 'w': 4, 'h': 2, 'q': 1, '8': 0.5, '16': 0.25 }[d];
     return dotted ? base * 1.5 : base;
   };
 
-  // ---- Calcolo "pitch" da Y coordinate ----
-  // VexFlow line 0 = top line (F5 in treble), line 4 = bottom line (E4)
-  // Ogni step verticale = mezzo spazio di rigo = una nota diatonica
-  // Mappa treble clef lines: line 0 (top) = F5, space = E5, line 1 = D5, ...
-  // Approccio: il rigo ha 5 linee. In treble:
-  //   top line = F5, poi scendendo E5, D5, C5, B4, A4, G4, F4, E4 (bottom line)
-  // Considero anche ledger lines sopra/sotto.
-  // Y di riferimento: posizione della top line (F5)
-
   const trebleStepFromIndex = (idx) => {
-    // idx = 0 corrisponde a F5 (top line). Scendendo, idx+1 = E5, ecc.
-    // Sistema: lettere in ordine discendente da F
-    const letters = ['f','e','d','c','b','a','g'];
+    const scaleLetterToNum = { c:0, d:1, e:2, f:3, g:4, a:5, b:6 };
     const startOctave = 5;
-    const startLetterIdx = 0; // 'f'
-    // Ogni idx sposta di un grado diatonico verso il basso
-    const totalStep = startLetterIdx + idx;
-    const letter = letters[((totalStep % 7) + 7) % 7];
-    // Calcolo ottava: partiamo da F5. Dopo F5,E5,D5,C5 arriva B4 (cambio ottava su B/C boundary)
-    // In realtà: F5=5, E5=5, D5=5, C5=5, B4=4, A4=4, G4=4, F4=4, E4=4, D4=4, C4=4, B3=3, ...
-    // L'ottava cambia quando si passa da C a B scendendo.
-    // Metodo diretto: calcolo valore MIDI-like.
-    // F5 ha "pitch index" = 5*7 + 3 (F è la 3a nota in C-D-E-F...) scendiamo di 1 per ogni idx
-    const scaleLetterToNum = {c:0,d:1,e:2,f:3,g:4,a:5,b:6};
-    const startNum = startOctave * 7 + scaleLetterToNum['f']; // 5*7+3 = 38
+    const startNum = startOctave * 7 + scaleLetterToNum['f'];
     const curNum = startNum - idx;
     const octave = Math.floor(curNum / 7);
     const letterNum = ((curNum % 7) + 7) % 7;
@@ -238,47 +223,48 @@
     return { letter: letterFromNum, octave: octave };
   };
 
-  // ---- Rendering ----
-  let renderer = null;
-  let ctx = null;
-  let staveLayout = []; // [{stave, noteRange:[startIdx,endIdx], beatsUsed, bbox}]
-
   const STAVE_WIDTH = 280;
   const STAVE_X_START = 10;
   const STAVE_Y = 40;
-  const TOTAL_WIDTH = STAVE_X_START + STAVE_WIDTH * state.measureCount + 20;
-  const TOTAL_HEIGHT = 220;
+  const TOTAL_HEIGHT = 200;
 
-  // Pre-calcolo: divide state.notes in battute secondo beats
+  const totalWidth = () => STAVE_X_START + STAVE_WIDTH * state.measureCount + 20;
+
   const splitNotesIntoMeasures = () => {
-    const measures = Array.from({length: state.measureCount}, () => []);
+    const measures = Array.from({ length: state.measureCount }, () => []);
     let measureIdx = 0;
     let beatsInCurrent = 0;
 
-    for (const n of state.notes) {
+    for (let i = 0; i < state.notes.length; i++) {
+      const n = state.notes[i];
       const nBeats = durationToBeats(n.duration, n.dots > 0);
       if (measureIdx >= state.measureCount) break;
       if (beatsInCurrent + nBeats > state.beatsPerMeasure + 0.001) {
-        // nota non entra, passa a battuta successiva (semplificazione: no tie automatico)
         measureIdx++;
         beatsInCurrent = 0;
         if (measureIdx >= state.measureCount) break;
       }
-      measures[measureIdx].push(n);
+      measures[measureIdx].push({ origIndex: i, note: n });
       beatsInCurrent += nBeats;
     }
     return measures;
   };
 
+  let staveLayout = [];
+  let noteBBoxes = [];
+
   const render = () => {
     const scoreDiv = document.getElementById('score');
     scoreDiv.innerHTML = '';
 
-    renderer = new VF.Renderer(scoreDiv, VF.Renderer.Backends.SVG);
-    renderer.resize(TOTAL_WIDTH, TOTAL_HEIGHT);
-    ctx = renderer.getContext();
+    const W = totalWidth();
+    const renderer = new VF.Renderer(scoreDiv, VF.Renderer.Backends.SVG);
+    renderer.resize(W, TOTAL_HEIGHT);
+    const ctx = renderer.getContext();
 
     staveLayout = [];
+    noteBBoxes = [];
+
     const measures = splitNotesIntoMeasures();
 
     for (let m = 0; m < state.measureCount; m++) {
@@ -289,8 +275,12 @@
       }
       stave.setContext(ctx).draw();
 
-      const measureNotes = measures[m];
-      const vfNotes = measureNotes.map(n => {
+      const measureData = measures[m];
+      const vfNotes = [];
+      const origIndexByVfIndex = [];
+
+      measureData.forEach((entry) => {
+        const n = entry.note;
         const durStr = n.duration + (n.isRest ? 'r' : '');
         const sn = new VF.StaveNote({
           keys: n.isRest ? ['b/4'] : n.keys,
@@ -298,26 +288,17 @@
         });
         if (n.dots > 0) VF.Dot.buildAndAttach([sn], { all: true });
         if (!n.isRest) {
-          n.accidentals.forEach((a, i) => {
+          (n.accidentals || []).forEach((a, i) => {
             if (a) sn.addModifier(new VF.Accidental(a), i);
           });
         }
-        return sn;
+        vfNotes.push(sn);
+        origIndexByVfIndex.push(entry.origIndex);
       });
 
-      // Fill resto della battuta con pause se serve
-      let beatsUsed = measureNotes.reduce((s, n) => s + durationToBeats(n.duration, n.dots > 0), 0);
-      const remaining = state.beatsPerMeasure - beatsUsed;
-      if (remaining > 0 && m === measures.findIndex((mm, i) => i >= 0 && measures.slice(i+1).every(x => x.length === 0)) ) {
-        // Nella prima battuta parzialmente piena dopo l'ultima nota, riempi con pause
-        // Semplificazione: usa pause di quarto
-        const pauseCount = Math.floor(remaining);
-        for (let i = 0; i < pauseCount; i++) {
-          vfNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: 'qr' }));
-        }
-      } else if (measureNotes.length === 0) {
-        // battuta vuota: pausa intera
+      if (vfNotes.length === 0) {
         vfNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: 'wr' }));
+        origIndexByVfIndex.push(-1);
       }
 
       try {
@@ -326,55 +307,113 @@
           .addTickables(vfNotes);
         new VF.Formatter().joinVoices([voice]).format([voice], STAVE_WIDTH - 40);
         voice.draw(ctx, stave);
+
+        vfNotes.forEach((sn, vfIdx) => {
+          const origIndex = origIndexByVfIndex[vfIdx];
+          if (origIndex < 0) return;
+          const bb = sn.getBoundingBox();
+          if (!bb) return;
+          noteBBoxes.push({
+            origIndex,
+            x: bb.getX(),
+            y: bb.getY(),
+            w: bb.getW(),
+            h: bb.getH()
+          });
+        });
+
       } catch (err) {
         console.warn('Render measure error:', err);
       }
 
-      staveLayout.push({
-        stave,
-        x: x,
-        y: STAVE_Y,
-        width: STAVE_WIDTH,
-        measureIdx: m
-      });
+      staveLayout.push({ stave, measureIdx: m, x });
     }
 
-    setStatus(`note: ${state.notes.length} | durata: ${labelDur()} | ${state.rest ? 'PAUSA ' : ''}${state.accidental ? 'alt:'+state.accidental+' ' : ''}${state.dotted ? '·' : ''}`);
+    if (state.selectedIndex >= 0) {
+      const bb = noteBBoxes.find(b => b.origIndex === state.selectedIndex);
+      if (bb) {
+        const pad = 4;
+        ctx.save();
+        ctx.setStrokeStyle('#2c6cc9');
+        ctx.setLineWidth(2);
+        ctx.setFillStyle('rgba(44,108,201,0.15)');
+        ctx.fillRect(bb.x - pad, bb.y - pad, bb.w + 2*pad, bb.h + 2*pad);
+        ctx.rect(bb.x - pad, bb.y - pad, bb.w + 2*pad, bb.h + 2*pad);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    document.getElementById('score-svg-wrapper').style.width = W + 'px';
+
+    setStatus(
+      `note: ${state.notes.length} | batt: ${state.measureCount} | dur: ${labelDur()}` +
+      `${state.rest ? ' [PAUSA]' : ''}${state.accidental ? ' alt:'+state.accidental : ''}${state.dotted ? ' ·' : ''}` +
+      `${state.selectedIndex >= 0 ? ' | SEL #'+state.selectedIndex : ''}`
+    );
   };
 
-  const labelDur = () => {
-    return { 'w': 'int', 'h': '1/2', 'q': '1/4', '8': '1/8', '16': '1/16' }[state.duration];
+  const labelDur = () => ({ 'w': 'int', 'h': '1/2', 'q': '1/4', '8': '1/8', '16': '1/16' }[state.duration]);
+
+  const findNoteAt = (x, y) => {
+    const pad = 8;
+    for (const b of noteBBoxes) {
+      if (x >= b.x - pad && x <= b.x + b.w + pad &&
+          y >= b.y - pad && y <= b.y + b.h + pad) {
+        return b.origIndex;
+      }
+    }
+    return -1;
   };
 
-  // ---- Gestione tap sul rigo ----
-  const scoreContainer = document.getElementById('score-svg-wrapper');
+  const pitchFromY = (y) => {
+    if (staveLayout.length === 0) return { letter: 'b', octave: 4 };
+    const firstStave = staveLayout[0].stave;
+    const topLineY = firstStave.getYForLine(0);
+    const lineSpacing = firstStave.getYForLine(1) - firstStave.getYForLine(0);
+    const stepSpacing = lineSpacing / 2;
+    const diatonicStep = Math.round((y - topLineY) / stepSpacing);
+    const clamped = Math.max(-6, Math.min(16, diatonicStep));
+    return trebleStepFromIndex(clamped);
+  };
 
-  scoreContainer.addEventListener('pointerdown', (e) => {
-    const rect = scoreContainer.getBoundingClientRect();
+  const scoreWrapper = document.getElementById('score-svg-wrapper');
+
+  scoreWrapper.addEventListener('pointerdown', (e) => {
+    const rect = scoreWrapper.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Identifica quale battuta (per ora non serve, inseriamo sempre in coda)
-    // Identifica pitch da y
-    // La top line del rigo in VexFlow è a stave.getYForTopText() circa, ma meglio:
-    // stave.getYForLine(0) = top line (F5), ogni linea distante ~10px
-    // gli step diatonici sono a mezzo-spazio = ~5px
-    if (staveLayout.length === 0) return;
+    const hitIdx = findNoteAt(x, y);
 
-    const firstStave = staveLayout[0].stave;
-    const topLineY = firstStave.getYForLine(0); // F5
-    const lineSpacing = firstStave.getYForLine(1) - firstStave.getYForLine(0); // ~10px
-    const stepSpacing = lineSpacing / 2; // mezzo spazio per step diatonico
+    if (hitIdx >= 0) {
+      if (state.selectedIndex === hitIdx) {
+        const n = state.notes[hitIdx];
+        if (!n.isRest) {
+          const newPitch = pitchFromY(y);
+          pushHistory();
+          n.keys = [newPitch.letter + '/' + newPitch.octave];
+          if (state.accidental) {
+            n.accidentals = [state.accidental];
+            state.accidental = null;
+            updatePaletteUI();
+          }
+        }
+      } else {
+        state.selectedIndex = hitIdx;
+      }
+      render();
+      return;
+    }
 
-    const diatonicStep = Math.round((y - topLineY) / stepSpacing);
-    // clamp a range ragionevole: da due ledger lines sopra (step -4) a due sotto (step +14)
-    const clamped = Math.max(-6, Math.min(16, diatonicStep));
-    const pitch = trebleStepFromIndex(clamped);
+    if (state.selectedIndex >= 0) {
+      state.selectedIndex = -1;
+      render();
+      return;
+    }
 
-    addNoteAtCurrentPosition(pitch);
-  });
-
-  const addNoteAtCurrentPosition = (pitch) => {
+    const pitch = pitchFromY(y);
+    pushHistory();
     const note = {
       keys: state.rest ? [] : [pitch.letter + '/' + pitch.octave],
       duration: state.duration,
@@ -383,15 +422,13 @@
       isRest: state.rest
     };
     state.notes.push(note);
-    render();
-    // reset alterazione dopo l'uso (come nella notazione reale, l'alterazione vale solo per quella nota)
     if (state.accidental) {
       state.accidental = null;
       updatePaletteUI();
     }
-  };
+    render();
+  });
 
-  // ---- Palette UI ----
   const updatePaletteUI = () => {
     document.querySelectorAll('[data-duration]').forEach(b => {
       b.classList.toggle('active', b.dataset.duration === state.duration);
@@ -406,6 +443,10 @@
   document.querySelectorAll('[data-duration]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.duration = btn.dataset.duration;
+      if (state.selectedIndex >= 0) {
+        pushHistory();
+        state.notes[state.selectedIndex].duration = state.duration;
+      }
       updatePaletteUI();
       render();
     });
@@ -414,6 +455,14 @@
   document.querySelectorAll('[data-acc]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.accidental = (state.accidental === btn.dataset.acc) ? null : btn.dataset.acc;
+      if (state.selectedIndex >= 0) {
+        const n = state.notes[state.selectedIndex];
+        if (!n.isRest) {
+          pushHistory();
+          n.accidentals = [state.accidental];
+          state.accidental = null;
+        }
+      }
       updatePaletteUI();
       render();
     });
@@ -421,6 +470,10 @@
 
   document.getElementById('btn-dot').addEventListener('click', () => {
     state.dotted = !state.dotted;
+    if (state.selectedIndex >= 0) {
+      pushHistory();
+      state.notes[state.selectedIndex].dots = state.dotted ? 1 : 0;
+    }
     updatePaletteUI();
     render();
   });
@@ -432,11 +485,44 @@
   });
 
   document.getElementById('btn-undo').addEventListener('click', () => {
-    state.notes.pop();
+    undo();
+  });
+
+  document.getElementById('btn-delete').addEventListener('click', () => {
+    if (state.selectedIndex < 0) return;
+    pushHistory();
+    state.notes.splice(state.selectedIndex, 1);
+    state.selectedIndex = -1;
     render();
   });
 
-  // ---- Init ----
+  document.getElementById('btn-add-measure').addEventListener('click', () => {
+    pushHistory();
+    state.measureCount++;
+    render();
+    const cont = document.getElementById('score-container');
+    cont.scrollLeft = cont.scrollWidth;
+  });
+
+  document.getElementById('btn-remove-measure').addEventListener('click', () => {
+    if (state.measureCount <= 1) return;
+    pushHistory();
+    state.measureCount--;
+    const beatsCapacity = state.measureCount * state.beatsPerMeasure;
+    let used = 0;
+    let cutIdx = state.notes.length;
+    for (let i = 0; i < state.notes.length; i++) {
+      const b = durationToBeats(state.notes[i].duration, state.notes[i].dots > 0);
+      if (used + b > beatsCapacity + 0.001) { cutIdx = i; break; }
+      used += b;
+    }
+    if (cutIdx < state.notes.length) {
+      state.notes = state.notes.slice(0, cutIdx);
+    }
+    state.selectedIndex = -1;
+    render();
+  });
+
   updatePaletteUI();
   render();
 
